@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "industrial-digital-twin-backend"
+version = "0.1.0"
+description = "Poetry-managed FastAPI backend for live industrial digital twin source ingestion."
+authors = ["Ayush Patil <you@example.com>"]
+readme = "README.md"
+packages = [{ include = "backend_service" }]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+beautifulsoup4 = "^4.13.4"
+fastapi = "^0.115.12"
+httpx = "^0.28.1"
+openpyxl = "^3.1.5"
+pypdf = "^5.4.0"
+pydantic-settings = "^2.9.1"
+uvicorn = { version = "^0.34.2", extras = ["standard"] }
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.11.6"
+
+[tool.poetry.scripts]
+digital-twin-api = "backend_service.main:run"
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"

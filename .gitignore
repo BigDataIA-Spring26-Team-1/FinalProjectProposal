@@ -201,6 +201,10 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Frontend artifacts
+industrial-digital-twin/node_modules/
+industrial-digital-twin/dist/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
