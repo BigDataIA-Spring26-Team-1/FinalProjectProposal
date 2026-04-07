@@ -291,3 +291,5 @@ App layer: FastAPI, Streamlit, tests, documentation, demo preparation
 
 Status
 Current status: MVP complete and runnable locally.
+
+Video Walkthrough: https://youtu.be/nHQOMe9tAKM
