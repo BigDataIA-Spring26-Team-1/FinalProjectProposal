@@ -14,7 +14,6 @@ from pyspark.sql import SparkSession
 from sentence_transformers import SentenceTransformer
 import chromadb
 
-
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 INPUT_PATH = os.path.join(DATA_DIR, "reviews_with_sentiment_parquet")
@@ -52,12 +51,18 @@ def main():
 
     df = amazon_df.unionByName(yelp_df).unionByName(reddit_df).unionByName(youtube_df)
 
+    print("\nEmbedding subset counts by source:")
+    df.groupBy("source").count().show(truncate=False)
+
     rows = df.select(
         "review_id",
         "review_text",
         "source",
         "product_name",
         "product_category",
+        "display_name",
+        "display_category",
+        "entity_type",
         "sentiment_label",
         "sentiment_score",
         "review_date",
@@ -85,6 +90,9 @@ def main():
             "source": str(row["source"] or ""),
             "product_name": str(row["product_name"] or ""),
             "product_category": str(row["product_category"] or ""),
+            "display_name": str(row["display_name"] or ""),
+            "display_category": str(row["display_category"] or ""),
+            "entity_type": str(row["entity_type"] or ""),
             "sentiment_label": str(row["sentiment_label"] or ""),
             "sentiment_score": float(row["sentiment_score"] or 0.0),
             "review_date": str(row["review_date"] or ""),

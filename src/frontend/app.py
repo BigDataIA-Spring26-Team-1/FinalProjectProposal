@@ -47,6 +47,12 @@ def run_chat(query, source_filter, n_results):
     return requests.get(f"{API_BASE}/chat", params=params, timeout=60).json()
 
 
+def pretty_sentiment_label(label: str) -> str:
+    if not label:
+        return "Unknown"
+    return str(label).replace("_", " ").title()
+
+
 # =========================
 # TOP: UNIFIED QUESTION FLOW
 # =========================
@@ -54,7 +60,7 @@ st.markdown("## Ask About the Reviews")
 
 query = st.text_input(
     "Ask a grounded question",
-    value="What do reviews say about battery complaints?"
+    value="What do reviews say about customer service?"
 )
 
 top_col1, top_col2 = st.columns(2)
@@ -95,8 +101,10 @@ if st.button("Ask"):
             with st.container():
                 st.markdown(f"#### Citation {i}")
                 st.write(f"Source: {item.get('source', '')}")
-                st.write(f"Product: {item.get('product_name', '')}")
-                st.write(f"Sentiment: {item.get('sentiment_label', '')} ({item.get('sentiment_score', 0)})")
+                st.write(f"Name: {item.get('display_name', '')}")
+                st.write(f"Category: {item.get('display_category', '')}")
+                st.write(f"Type: {item.get('entity_type', '')}")
+                st.write(f"Sentiment: {pretty_sentiment_label(item.get('sentiment_label', ''))}")
 
                 url = item.get("source_url", "")
                 source = item.get("source", "")
@@ -118,9 +126,10 @@ if st.button("Ask"):
             with st.container():
                 st.markdown(f"#### Result {i}")
                 st.write(f"Source: {item.get('source', '')}")
-                st.write(f"Product: {item.get('product_name', '')}")
-                st.write(f"Category: {item.get('product_category', '')}")
-                st.write(f"Sentiment: {item.get('sentiment_label', '')} ({item.get('sentiment_score', 0)})")
+                st.write(f"Name: {item.get('display_name', '')}")
+                st.write(f"Category: {item.get('display_category', '')}")
+                st.write(f"Type: {item.get('entity_type', '')}")
+                st.write(f"Sentiment: {pretty_sentiment_label(item.get('sentiment_label', ''))}")
                 st.write(f"Distance: {item.get('distance', 0):.4f}")
 
                 url = item.get("source_url", "")
@@ -192,7 +201,9 @@ with bottom_left:
 with bottom_right:
     st.markdown("### Sentiment Breakdown")
     if not df_sentiment.empty:
-        st.dataframe(df_sentiment, use_container_width=True)
+        df_sentiment_display = df_sentiment.copy()
+        df_sentiment_display["sentiment_label"] = df_sentiment_display["sentiment_label"].apply(pretty_sentiment_label)
+        st.dataframe(df_sentiment_display, use_container_width=True)
         pivot = df_sentiment.pivot(index="source", columns="sentiment_label", values="count").fillna(0)
         st.bar_chart(pivot)
     else:

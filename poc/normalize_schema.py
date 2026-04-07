@@ -30,19 +30,17 @@ def create_unified_record(
     product_name: str,
     product_category: str,
     source: str,
-    rating_normalized: Optional[float],  # 0.0 to 1.0, or None if source has no rating
+    rating_normalized: Optional[float],
     review_text: str,
-    review_date: Optional[str],  # ISO 8601 format
+    review_date: Optional[str],
     reviewer_id: str,
-    verified_purchase: Optional[bool],  # None if not applicable
-    helpful_votes: Optional[int],  # None if not available
+    verified_purchase: Optional[bool],
+    helpful_votes: Optional[int],
     source_url: str,
+    display_name: str,
+    display_category: str,
+    entity_type: str,
 ) -> dict:
-    """
-    Create a record in our unified schema.
-    This function enforces the contract — every source normalizer must
-    produce data that fits this format.
-    """
     return {
         "review_id": review_id,
         "product_name": product_name,
@@ -55,6 +53,9 @@ def create_unified_record(
         "verified_purchase": verified_purchase,
         "helpful_votes": helpful_votes,
         "source_url": source_url,
+        "display_name": display_name,
+        "display_category": display_category,
+        "entity_type": entity_type,
         "text_length_words": len(review_text.split()) if review_text else 0,
     }
 
@@ -117,7 +118,8 @@ def normalize_amazon(raw: dict) -> dict:
     - rating is float 1.0-5.0 → normalize to 0-1: (rating - 1) / 4
     - timestamp is epoch MILLISECONDS → convert to ISO 8601
     - title and text may be null → use empty string
-    - asin is product ID → use as product_name (ideally map to real name via metadata)
+    - asin is product ID → use as product_name
+    - add user-facing metadata for cleaner display
     """
     rating = raw.get("rating")
     rating_norm = (rating - 1.0) / 4.0 if rating is not None else None
@@ -134,9 +136,12 @@ def normalize_amazon(raw: dict) -> dict:
     title = raw.get("title") or ""
     full_text = f"{title}. {text}".strip(". ") if title else text
 
+    asin = raw.get("asin", "unknown")
+    parent_asin = raw.get("parent_asin", asin)
+
     return create_unified_record(
-        review_id=f"amazon_{raw.get('asin', '')}_{raw.get('user_id', '')[:8]}",
-        product_name=raw.get("parent_asin", raw.get("asin", "unknown")),
+        review_id=f"amazon_{asin}_{raw.get('user_id', '')[:8]}",
+        product_name=parent_asin,
         product_category="electronics",
         source="amazon",
         rating_normalized=round(rating_norm, 4) if rating_norm is not None else None,
@@ -145,7 +150,10 @@ def normalize_amazon(raw: dict) -> dict:
         reviewer_id=raw.get("user_id", "unknown"),
         verified_purchase=raw.get("verified_purchase"),
         helpful_votes=raw.get("helpful_vote", 0),
-        source_url=f"https://amazon.com/dp/{raw.get('asin', '')}",
+        source_url=f"https://amazon.com/dp/{asin}",
+        display_name=f"Amazon Electronics Item {asin}",
+        display_category="Electronics Product",
+        entity_type="product_review",
     )
 
 
@@ -159,6 +167,7 @@ def normalize_yelp(raw: dict, business_lookup: Optional[dict] = None) -> dict:
     - no verified_purchase -> None
     - no helpful_votes -> None
     - use business metadata if available
+    - add user-friendly metadata fields for UI and chat
     """
     stars = raw.get("stars")
     rating_norm = (stars - 1) / 4.0 if stars is not None else None
@@ -176,8 +185,10 @@ def normalize_yelp(raw: dict, business_lookup: Optional[dict] = None) -> dict:
     categories = business.get("categories")
     if isinstance(categories, str) and categories.strip():
         product_category = categories
+        display_category = categories.split(",")[0].strip()
     else:
         product_category = "local_business"
+        display_category = "Local Business"
 
     return create_unified_record(
         review_id=f"yelp_{raw.get('review_id', '')}",
@@ -191,6 +202,9 @@ def normalize_yelp(raw: dict, business_lookup: Optional[dict] = None) -> dict:
         verified_purchase=None,
         helpful_votes=None,
         source_url=f"https://yelp.com/biz/{raw.get('business_id', '')}",
+        display_name=business_name,
+        display_category=display_category,
+        entity_type="business_review",
     )
 
 
@@ -201,10 +215,9 @@ def normalize_reddit(raw: dict) -> dict:
     Key decisions:
     - Reddit has NO star rating → rating_normalized = None
     - We store the post score separately but do NOT convert it to a rating
-      (score reflects popularity, not product quality)
-    - created_utc is epoch SECONDS (not ms like Amazon) → convert to ISO 8601
-    - No verified purchase → None
-    - We use score as helpful_votes analog
+    - created_utc is epoch SECONDS → convert to ISO 8601
+    - no verified purchase → None
+    - add user-friendly metadata fields for UI and chat
     """
     ts = raw.get("created_utc")
     date_str = None
@@ -218,10 +231,13 @@ def normalize_reddit(raw: dict) -> dict:
     text = raw.get("text", "")
     full_text = f"{title}. {text}".strip(". ") if title else text
 
+    subreddit = raw.get("subreddit", "general")
+    title_text = raw.get("title", "Reddit Discussion")
+
     return create_unified_record(
         review_id=f"reddit_{raw.get('source_id', '')}",
         product_name="unknown",
-        product_category=raw.get("subreddit", "general"),
+        product_category=subreddit,
         source="reddit",
         rating_normalized=None,
         review_text=full_text,
@@ -230,6 +246,9 @@ def normalize_reddit(raw: dict) -> dict:
         verified_purchase=None,
         helpful_votes=raw.get("score", 0),
         source_url=raw.get("url", ""),
+        display_name=title_text,
+        display_category=subreddit,
+        entity_type="forum_post",
     )
 
 
@@ -239,9 +258,9 @@ def normalize_youtube(raw: dict) -> dict:
 
     Key decisions:
     - YouTube has NO rating → rating_normalized = None
-    - Transcript is unstructured speech → needs LLM to extract product mentions
-    - No verified purchase → None
-    - No helpful votes (could use view count but that's video-level, not review-level)
+    - transcript is unstructured speech
+    - no verified purchase → None
+    - add user-friendly metadata fields for UI and chat
     """
     ts = raw.get("created_utc")
     date_str = None
@@ -250,6 +269,8 @@ def normalize_youtube(raw: dict) -> dict:
             date_str = datetime.fromtimestamp(ts, UTC).isoformat()
         except (ValueError, OSError, TypeError):
             date_str = None
+
+    title_text = raw.get("title", "YouTube Review")
 
     return create_unified_record(
         review_id=f"youtube_{raw.get('source_id', '')}",
@@ -263,8 +284,10 @@ def normalize_youtube(raw: dict) -> dict:
         verified_purchase=None,
         helpful_votes=None,
         source_url=raw.get("url", ""),
+        display_name=title_text,
+        display_category="Video Review",
+        entity_type="video_transcript",
     )
-
 
 # ══════════════════════════════════════════════════════════════
 # SAMPLE FALLBACKS

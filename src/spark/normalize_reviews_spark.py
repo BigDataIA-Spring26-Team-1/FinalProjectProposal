@@ -65,6 +65,9 @@ def normalize_amazon(spark: SparkSession):
         col("verified_purchase").alias("verified_purchase"),
         col("helpful_vote").alias("helpful_votes"),
         concat_ws("", lit("https://amazon.com/dp/"), col("asin")).alias("source_url"),
+        concat_ws("", lit("Amazon Electronics Item "), col("asin")).alias("display_name"),
+lit("Electronics Product").alias("display_category"),
+lit("product_review").alias("entity_type"),
     )
 
     return df
@@ -93,9 +96,14 @@ def normalize_yelp(spark: SparkSession):
         lit(None).cast("boolean").alias("verified_purchase"),
         lit(None).cast("int").alias("helpful_votes"),
         concat_ws("", lit("https://yelp.com/biz/"), col("business_id")).alias("source_url"),
+        col("business_id").alias("display_name"),
+        lit("Local Business").alias("display_category"),
+        lit("business_review").alias("entity_type"),
     )
 
     return df
+
+
 
 def normalize_reddit(spark: SparkSession):
     reddit_path = os.path.join(DATA_DIR, "reddit_reviews.jsonl")
@@ -120,9 +128,17 @@ def normalize_reddit(spark: SparkSession):
         lit(None).cast("boolean").alias("verified_purchase"),
         col("score").cast("int").alias("helpful_votes"),
         col("url").alias("source_url"),
+        when(col("title").isNotNull(), col("title"))
+        .otherwise(lit("Reddit Discussion"))
+        .alias("display_name"),
+        when(col("subreddit").isNotNull(), col("subreddit"))
+        .otherwise(lit("general"))
+        .alias("display_category"),
+        lit("forum_post").alias("entity_type"),
     )
 
     return df
+
 
 
 def normalize_youtube(spark: SparkSession):
@@ -144,6 +160,9 @@ def normalize_youtube(spark: SparkSession):
         lit(None).cast("boolean").alias("verified_purchase"),
         lit(None).cast("int").alias("helpful_votes"),
         col("url").alias("source_url"),
+        lit("YouTube Review").alias("display_name"),
+        lit("Video Review").alias("display_category"),
+        lit("video_transcript").alias("entity_type"),
     )
 
     return df
