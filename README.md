@@ -6,6 +6,15 @@ DAMG 7245 — Big Data and Intelligent Analytics | Northeastern University | Spr
 Overview
 ReviewPulse AI is a data-first analytics application that combines product review data from multiple sources, normalizes the data into one schema, enriches it with sentiment scores, creates semantic embeddings, and exposes a search and chat experience through an API and dashboard.
 
+Video Walkthrough:
+
+[![ReviewPulse AI Video Walkthrough](https://img.youtube.com/vi/nHQOMe9tAKM/maxresdefault.jpg)](https://youtu.be/nHQOMe9tAKM)
+
+Direct link: https://youtu.be/nHQOMe9tAKM
+
+Codelab: https://codelabs-preview.appspot.com/?file_id=1LbdxkF1EmuyysmAEB65dsJ-dhXXlNwNTUhqZ7vdv7AM#15
+
+
 The current MVP is designed to demonstrate:
 
 multi-source data ingestion
@@ -291,5 +300,3 @@ App layer: FastAPI, Streamlit, tests, documentation, demo preparation
 
 Status
 Current status: MVP complete and runnable locally.
-
-Video Walkthrough: https://youtu.be/nHQOMe9tAKM
